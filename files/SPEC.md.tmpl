@@ -1,0 +1,43 @@
+# {{ project.name }} — Specification
+
+Status: draft · Created: {{ project.created_at }}
+
+## Initial brief
+
+{% if project.brief | trim %}{{ project.brief }}{% else %}No brief yet. Ask the owner what the mod should do before changing the example behaviour.{% endif %}
+
+## Starting point
+
+The project starts as a working mod that does one thing: it puts the greeting (“Hello from fastDev”) in Claude Code's status line. It has an on/off switch, a language (English or Russian) and the greeting text in a local settings page, and a `/{{ project.slug }}` command. All of this is an example to be replaced: keep the structure, change the behaviour.
+
+## Goals
+
+<!-- What the mod does for its owner, in two or three outcomes. -->
+
+## Behaviour
+
+<!-- Where it shows up in Claude Code (status line, pane, toast, slash command, hook on tool calls…), when it acts and what it changes. Be exact: events, conditions, texts. -->
+
+## Settings
+
+<!-- Every setting: name, type, default, range, what it changes. Only what the owner will really tune; everything else stays a constant in the code. -->
+
+## Data and privacy
+
+<!-- What the mod stores in ~/.claude/mod-data/{{ project.slug }}, what it reads from the session, and whether anything leaves the machine (network, other programs). Default: nothing leaves. -->
+
+## Non-goals
+
+<!-- What the mod deliberately does not do. -->
+
+## Acceptance criteria
+
+<!-- Observable checks in a real Claude Code session, one per behaviour. -->
+
+## Open questions
+
+<!-- Anything to ask the owner before building. -->
+
+## Milestones
+
+<!-- Small, shippable steps. -->

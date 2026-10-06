@@ -1,0 +1,11 @@
+{
+  // Tests run in Node (vitest) against the hooks, the server and the UI's i18n.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["es2023", "DOM"],
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["../.claude/types", "../hooks", "../ui/lib", "../ui/src/i18n", "./**/*.ts"]
+}

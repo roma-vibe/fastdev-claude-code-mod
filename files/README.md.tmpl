@@ -1,0 +1,42 @@
+# {{ project.name }}
+
+A mod for [Claude Code](https://claude.com/claude-code). It puts a greeting in the status line and has a settings page with an on/off switch, the language and the greeting text.
+
+## Install
+
+Requires Claude Code with plugin support for function hooks and Node 24 or newer.
+
+```bash
+npm install
+npm run types
+```
+
+Load the mod for one session:
+
+```bash
+claude --plugin-dir {% raw %}/absolute/path/to/{% endraw %}{{ project.slug }}
+```
+
+or in every session, through `env` in `~/.claude/settings.json` (then restart Claude Code):
+
+```json
+{ "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/absolute/path/to/{{ project.slug }}" } }
+```
+
+To turn it off, remove the folder from that list or type `/{{ project.slug }} off`.
+
+Mods run with your permissions and are not sandboxed: read the code before you enable one.
+
+## Use
+
+- `/{{ project.slug }}` — status; `/{{ project.slug }} on` and `off`; `/{{ project.slug }} reload` — re-read the settings; `/{{ project.slug }} ui` — open the settings page.
+- Settings are kept in `~/.claude/mod-data/{{ project.slug }}/config.json`.
+
+## Develop
+
+```bash
+npm run dev      # settings page with hot reload: http://localhost:{{ ports.UI_DEV_PORT }}
+npm run check    # lint, formatting, types, tests, build, Claude Code's own validation
+```
+
+See `AGENTS.md` for the structure and for how to add settings, hooks and commands.

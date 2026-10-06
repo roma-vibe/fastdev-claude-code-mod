@@ -1,0 +1,21 @@
+{
+  // The mod's hooks. They run inside Claude Code, not in Node: no Node types
+  // here ("types": []). The `claude-code` module comes from .claude/types,
+  // which `npm run types` writes for the Claude Code you run.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "types": [],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
+    "allowImportingTsExtensions": true
+  },
+  "include": [".claude/types", "hooks"]
+}

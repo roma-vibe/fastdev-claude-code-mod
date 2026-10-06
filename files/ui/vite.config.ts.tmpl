@@ -1,0 +1,34 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+{% if choices.css == "tailwind" %}import tailwindcss from '@tailwindcss/vite';
+{% endif %}import vue from '@vitejs/plugin-vue';
+import { defineConfig } from 'vite';
+
+import { portOf, readDotenv } from './lib/env.ts';
+
+const ui = path.dirname(fileURLToPath(import.meta.url));
+const env = readDotenv(path.dirname(ui));
+// `npm run dev` runs this on UI_DEV_PORT and proxies /api to the settings server on UI_PORT.
+const target = `http://127.0.0.1:${portOf(env.UI_PORT, 4777)}`;
+
+export default defineConfig({
+  root: ui,
+  plugins: [vue(){% if choices.css == "tailwind" %}, tailwindcss(){% endif %}],
+  server: {
+    port: portOf(env.UI_DEV_PORT, 5173),
+    // The app imports shared logic from ../hooks/lib.
+    fs: { allow: [path.dirname(ui)] },
+    proxy: {
+      '/api': {
+        target,
+        changeOrigin: true,
+        // The server only accepts mutations whose Origin is its own.
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', target));
+        },
+      },
+    },
+  },
+  build: { outDir: path.join(ui, 'dist'), emptyOutDir: true },
+});

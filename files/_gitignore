@@ -1,0 +1,7 @@
+.env
+node_modules/
+ui/dist/
+.DS_Store
+# Written by `npm run types` and by Claude Code itself for the version you run.
+.claude/types/
+.claude-plugin/types/

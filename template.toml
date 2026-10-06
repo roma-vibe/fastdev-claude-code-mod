@@ -1,0 +1,159 @@
+# Manifest reference: docs/manifest.md
+schema = 1
+id = "claude-code-mod"
+name = "Claude Code Mod"
+description = "A mod for Claude Code: a plugin of function hooks written in TypeScript that hot-reloads in the running session. It ships one tiny feature, the text “Hello from fastDev” in Claude Code's status line, and everything around it that a real mod needs: a `/<name>` slash command (status, on, off, reload, ui), a settings file shared by the hooks and a local settings page (Vue 3, styled with Tailwind CSS 4 or plain CSS, your choice) with an on/off switch, a language choice (English or Russian) and the greeting text, a dependency-free settings server, unit tests with a fake engine, ESLint, and Claude Code's own validator in the quality gate. Choose it to start a new mod quickly: replace the greeting with the real behaviour and add settings one by one."
+category = "other"
+languages = ["node"]
+tags = ["claude-code", "mod", "plugin", "hooks", "typescript", "vue", "tailwind", "eslint"]
+stack = [
+  "Claude Code mod (function hooks)",
+  "TypeScript 5.9",
+  "Node.js 24+",
+  "Vue 3",
+  "Vite 8",
+  "Tailwind CSS 4 (or plain CSS)",
+  "Vitest 5",
+  "ESLint 10",
+]
+
+[requirements]
+node = ">=24"
+npm = ">=10"
+
+[env]
+APP_NAME = "{{ project.name }}"
+APP_SLUG = "{{ project.slug }}"
+
+[ports]
+UI_PORT = 4777
+UI_DEV_PORT = 5173
+
+[[set]]
+file = "package.json"
+path = ["name"]
+value = "{{ project.slug }}"
+
+[[set]]
+file = "package-lock.json"
+path = ["name"]
+value = "{{ project.slug }}"
+
+[[set]]
+file = "package-lock.json"
+path = ["packages", "", "name"]
+value = "{{ project.slug }}"
+
+# The plugin name is the mod's identity: the slash command `/<name>`, the data folder
+# `~/.claude/mod-data/<name>`. It must be the slug.
+[[set]]
+file = ".claude-plugin/plugin.json"
+path = ["name"]
+value = "{{ project.slug }}"
+
+[[set]]
+file = ".claude-plugin/plugin.json"
+path = ["author", "name"]
+value = "{{ project.name }}"
+
+[[setup]]
+label = "Install dependencies"
+run = "npm install"
+
+[[setup]]
+label = "Write Claude Code types"
+run = "npm run types"
+
+[commands.dev]
+label = "Dev"
+run = "npm run dev"
+description = "The settings page with hot reload, and the settings server it talks to."
+long = true
+url = "http://localhost:${UI_DEV_PORT}"
+primary = true
+
+[commands.build]
+label = "Build"
+run = "npm run build"
+description = "Builds the settings page (ui/dist), which the settings server serves."
+
+[commands.start]
+label = "Settings UI"
+run = "npm start"
+description = "The settings server with the built page; it is what the /<name> ui command starts."
+long = true
+url = "http://localhost:${UI_PORT}"
+
+[commands.test]
+label = "Test"
+run = "npm test"
+
+[commands.check]
+label = "Check"
+run = "npm run check"
+description = "ESLint, formatting, types, tests, build and Claude Code's own validation of the mod."
+
+[commands.lint]
+label = "Lint"
+run = "npm run lint"
+description = "ESLint with zero warnings allowed."
+
+[commands.types]
+label = "Claude Code types"
+run = "npm run types"
+description = "Rewrites .claude/types for the Claude Code version you run. Run it after updating Claude Code."
+
+[commands.validate]
+label = "Validate mod"
+run = "npm run validate"
+description = "Asks Claude Code to validate the plugin manifest and the hooks module the way it loads them."
+
+[choices.css]
+label = "Styles"
+description = "How the settings page is styled. The page uses the same class names with both options."
+default = "tailwind"
+
+[choices.css.options.tailwind]
+label = "Tailwind CSS"
+description = "Tailwind CSS 4: the page's building blocks (.card, .btn, …) are component classes built from utilities."
+
+[choices.css.options.none]
+label = "Plain CSS"
+description = "One hand-written stylesheet with CSS variables and a dark theme, no CSS framework."
+
+[verify]
+commands = ["check"]
+# The default selection (Tailwind CSS) runs first.
+variants = [{ css = "none" }]
+
+[preview]
+command = "dev"
+message = "The settings page of the mod is open: switch the mod on and off, change the language (English or Russian) and the greeting, and save. In Claude Code the greeting appears in the status line. To try it there, start Claude Code with `claude --plugin-dir ${PREVIEW_DIR}`, type /<project slug> and then /<project slug> ui. In a project, the README explains how to load the mod in every session."
+
+[translations.ru]
+"Claude Code Mod" = "Мод для Claude Code"
+"A mod for Claude Code: a plugin of function hooks written in TypeScript that hot-reloads in the running session. It ships one tiny feature, the text “Hello from fastDev” in Claude Code's status line, and everything around it that a real mod needs: a `/<name>` slash command (status, on, off, reload, ui), a settings file shared by the hooks and a local settings page (Vue 3, styled with Tailwind CSS 4 or plain CSS, your choice) with an on/off switch, a language choice (English or Russian) and the greeting text, a dependency-free settings server, unit tests with a fake engine, ESLint, and Claude Code's own validator in the quality gate. Choose it to start a new mod quickly: replace the greeting with the real behaviour and add settings one by one." = "Мод для Claude Code: плагин из функциональных хуков на TypeScript, который перезагружается на лету в запущенной сессии. Содержит одну крошечную функцию — текст «Hello from fastDev» в строке состояния Claude Code — и всё, что нужно настоящему моду: слэш-команду `/<имя>` (status, on, off, reload, ui), файл настроек, общий для хуков и локальной страницы настроек (Vue 3, оформление на Tailwind CSS 4 или на обычном CSS — на выбор) с переключателем, выбором языка (английский или русский) и текстом приветствия, сервер настроек без зависимостей, юнит-тесты с поддельным движком, ESLint и встроенную проверку Claude Code в проверочном скрипте. Подходит, чтобы быстро начать новый мод: замените приветствие настоящим поведением и добавляйте настройки по одной."
+"Dev" = "Dev"
+"The settings page with hot reload, and the settings server it talks to." = "Страница настроек с горячей перезагрузкой и сервер настроек, с которым она работает."
+"Build" = "Сборка"
+"Builds the settings page (ui/dist), which the settings server serves." = "Собирает страницу настроек (ui/dist), которую отдаёт сервер настроек."
+"Settings UI" = "Страница настроек"
+"The settings server with the built page; it is what the /<name> ui command starts." = "Сервер настроек с собранной страницей; именно его запускает команда /<имя> ui."
+"Test" = "Тесты"
+"Lint" = "Линтер"
+"ESLint with zero warnings allowed." = "ESLint без единого предупреждения."
+"Styles" = "Стили"
+"How the settings page is styled. The page uses the same class names with both options." = "Как оформлена страница настроек. С обоими вариантами страница использует одни и те же имена классов."
+"Tailwind CSS" = "Tailwind CSS"
+"Tailwind CSS 4: the page's building blocks (.card, .btn, …) are component classes built from utilities." = "Tailwind CSS 4: блоки страницы (.card, .btn, …) — компонентные классы, собранные из утилит."
+"Plain CSS" = "Обычный CSS"
+"One hand-written stylesheet with CSS variables and a dark theme, no CSS framework." = "Один рукописный файл стилей с CSS-переменными и тёмной темой, без CSS-фреймворка."
+"Check" = "Проверка"
+"ESLint, formatting, types, tests, build and Claude Code's own validation of the mod." = "ESLint, форматирование, типы, тесты, сборка и собственная проверка мода в Claude Code."
+"Claude Code types" = "Типы Claude Code"
+"Rewrites .claude/types for the Claude Code version you run. Run it after updating Claude Code." = "Перезаписывает .claude/types под версию Claude Code, которую вы запускаете. Запускайте после обновления Claude Code."
+"Validate mod" = "Проверить мод"
+"Asks Claude Code to validate the plugin manifest and the hooks module the way it loads them." = "Просит Claude Code проверить манифест плагина и модуль хуков так, как он их загружает."
+"Install dependencies" = "Установка зависимостей"
+"Write Claude Code types" = "Запись типов Claude Code"
+"The settings page of the mod is open: switch the mod on and off, change the language (English or Russian) and the greeting, and save. In Claude Code the greeting appears in the status line. To try it there, start Claude Code with `claude --plugin-dir ${PREVIEW_DIR}`, type /<project slug> and then /<project slug> ui. In a project, the README explains how to load the mod in every session." = "Страница настроек мода открыта: включайте и выключайте мод, меняйте язык (английский или русский) и приветствие и сохраняйте. В Claude Code приветствие появляется в строке состояния. Чтобы попробовать там, запустите Claude Code командой `claude --plugin-dir ${PREVIEW_DIR}`, введите /<слаг проекта>, затем /<слаг проекта> ui. В проекте README объясняет, как подключить мод во всех сессиях."

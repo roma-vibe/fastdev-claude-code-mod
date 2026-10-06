@@ -1,0 +1,107 @@
+# {{ project.name }} — agent guide
+
+{% if options.spec_md %}Read `SPEC.md` first (what the mod is for), then this file (how it is built).
+
+{% endif %}{{ project.name }} is a **mod for Claude Code**: a plugin of *function hooks* written in TypeScript. Claude Code loads `hooks/register.ts` into the running session and hot-reloads it when the file changes. A mod shows things in Claude Code (status line, panes, toasts), reacts to events (session start, turns, tool calls) and adds slash commands. It has a settings page of its own. Out of the box it does one small thing: it puts the greeting from the settings into the status line.
+
+Load the `plugin-authoring` skill before you write or debug hooks: it describes the engine interface (`$`) and the events. The generated declarations are in `.claude/types/` (`npm run types` writes them for the Claude Code you run; do not commit them).
+
+## Stack
+
+- **Hooks** (`hooks/`): TypeScript run by Claude Code's own engine. No Node, no DOM, no `import` of anything outside `hooks/`; everything outside goes through `$` (`$.fs`, `$.process`, `$.ui`, `$.env`, `$.command`…).
+- **Settings server** (`ui/server.ts`, `ui/lib/`): plain Node 24+ (runs TypeScript directly, no build, no dependencies). A JSON API over the settings file plus the built page.
+- **Settings page** (`ui/src/`): Vue 3, Vite 8, {% if choices.css == "tailwind" %}Tailwind CSS 4{% else %}plain CSS{% endif %}. No router, no store library: one page.
+- **Quality**: ESLint, Vitest, Prettier, `tsc` and `vue-tsc` (strict), and `claude plugin validate` (warnings fail the check).
+
+## Project map
+
+```
+.claude-plugin/plugin.json   plugin manifest; "name" is the mod's identity (/{{ project.slug }}, data folder)
+hooks/hooks.json             lists the hooks module(s): { "modules": ["./register.ts"] }
+hooks/register.ts            THE MOD: wires events to the pure code in lib/ (keep it thin)
+hooks/lib/config.ts          settings type, defaults, validation (used by hooks, server AND page)
+hooks/lib/messages.ts        the mod's own messages in Claude Code, English and Russian
+hooks/lib/paths.ts           where the data lives; Node candidates for starting the server
+ui/server.ts                 settings server: ports, --detach, --data
+ui/lib/handler.ts            HTTP API (GET/PUT /api/config, POST /api/config/reset, /api/health) + static files
+ui/src/                      the Vue page: App.vue, components/Settings.vue, settingsSchema.ts, i18n/, style.css
+eslint.config.js            ESLint rules (hooks cannot import Node or the UI; the page fetches only through api.ts)
+scripts/                     dev (server + Vite), types, validate, claude (finds the Claude Code binary)
+tests/                       Vitest: pure code, the handler on a real port, the hooks against a fake engine
+.env                         APP_NAME, APP_SLUG, UI_PORT, UI_DEV_PORT (never committed; .env.example is)
+```
+
+## How it works
+
+1. `session.start` → `register.ts` finds the data folder, loads `config.json` (writing the defaults the first time), registers `/{{ project.slug }}` and shows the greeting.
+2. `turn.start` → reloads `config.json` when its mtime changed, so a change saved in the settings page applies at the next turn.
+3. `command.run` → `/{{ project.slug }}` (status), `on`, `off`, `reload`, `ui` (starts the settings server detached and prints its address).
+
+**Data.** Everything the mod stores lives in `~/.claude/mod-data/{{ project.slug }}/` (`config.json`, later logs, caches…). The hooks and the settings server must agree on it, so both ask `hooks/lib/paths.ts`. Never write into Claude Code's own folders or into the project.
+
+**Settings.** One JSON file, `config.json`. `hooks/lib/config.ts` is the single definition: the `ModConfig` type, `DEFAULT_CONFIG`, `resolveConfig` (reads *any* JSON and returns a valid config: unknown or invalid fields fall back to defaults) and `parsePatch` (validates what the page sends and reports every problem). The server writes the file atomically; the hooks only read it, except for `on`/`off`.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | settings server (`UI_PORT`) + Vite with hot reload (`UI_DEV_PORT`, proxies `/api`): open http://localhost:{{ ports.UI_DEV_PORT }} |
+| `npm start` | the settings server with the built page: http://localhost:{{ ports.UI_PORT }} (build first) |
+| `npm run build` | builds the page into `ui/dist` |
+| `npm run lint` | ESLint, zero warnings (`npm run lint:fix` fixes what it can) |
+| `npm test` | Vitest |
+| `npm run types` | writes `.claude/types` for the installed Claude Code (after every Claude Code update) |
+| `npm run validate` | `claude plugin validate` (warnings fail the check): the engine's own check of the manifest and the hooks module |
+| `npm run check` | **everything**: ESLint, Prettier, type checks, tests, build, validate |
+
+## Trying the mod in Claude Code
+
+- One session: `claude --plugin-dir {% raw %}/absolute/path/to/{% endraw %}{{ project.slug }}`.
+- Every session: add the folder to `env` in `~/.claude/settings.json` and restart Claude Code:
+
+  ```json
+  { "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/absolute/path/to/{{ project.slug }}", "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" } }
+  ```
+
+  `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` is only needed on Claude Code versions that still gate function hooks. To switch the mod off, remove the folder from the list (or use `/{{ project.slug }} off`).
+- Several mods may be loaded at once and each owns its own status line text; if two fight over `$.ui.status`, combine them in one module.
+- Mods run with the owner's permissions and are not sandboxed. Do not add network calls, shell commands or file access the mod's purpose does not need, and say so in the README when it does.
+
+## How to add…
+
+**A setting.** (1) `hooks/lib/config.ts`: the field in `ModConfig`, its default, handling in `resolveConfig` and `parsePatch`. (2) `ui/src/settingsSchema.ts`: a field definition (label and help through `t()`); if it needs a new control, add the kind in `components/Settings.vue`. (3) `ui/src/i18n/ru.ts`: the Russian text of every new `t()` string. (4) Use it in the hooks. (5) Tests in `tests/config.test.ts`.
+
+**A hook.** In `hooks/register.ts` add `on('<event>', async ($, e, next) => …)`. Always `return next(e)` (or the result of it) unless the handler's job is to answer. Put the logic in `hooks/lib/` as pure functions with their own tests; `register.ts` only calls `$`. List events and their payloads in the `plugin-authoring` skill and `.claude/types/claude-code.d.ts`.
+
+**A slash command.** The command is the plugin name; sub-commands are words in `runCommand`. Add the word, its message in `hooks/lib/messages.ts` (English **and** Russian; `tests/messages.test.ts` checks both), update `usage`.
+
+**An API route.** `ui/lib/handler.ts` (validate input with a function from `hooks/lib/`, answer errors through `tr()` so they follow `X-Mod-Lang`), a method in `ui/src/api.ts`, a test in `tests/handler.test.ts`.
+
+**Styling.** {% if choices.css == "tailwind" %}`ui/src/style.css` defines the page's building blocks as component classes (`.card`, `.btn`, `.input`, `.badge`…) with `@apply`; the components use these class names and no utility classes. Add a block there, then use it. Light and dark are handled by `dark:` variants.{% else %}`ui/src/style.css` is one plain stylesheet: colours are CSS variables in `:root` (with dark values under `prefers-color-scheme: dark`) and the building blocks are classes (`.card`, `.btn`, `.input`, `.badge`…). Add a class there, then use it; no CSS framework is installed.{% endif %}
+
+**A new page or tab.** `ui/src/components/<Name>.vue` and mount it in `App.vue`. Add a router only when there are several pages.
+
+## Rules and pitfalls
+
+- **The hooks environment is not Node.** `$.env.get(...)`, `$.fs.read(...)` and the other engine calls take **literal** names/arguments the validator can list; a computed name fails `npm run validate`. Do not import Node modules or anything outside `hooks/` from `register.ts` or `hooks/lib/`.
+- **`hooks/lib/` is pure** (no `$`, no Node, no DOM): it is shared by the engine, Node and the browser and unit-tested directly.
+- **A broken module does not load at all, in any session.** Run `npm run validate` (or `check`) before you say a change works; after edits the running session hot-reloads the module, so a type error shows up immediately.
+- **Hooks must never throw into the session.** Catch, log with `$.ui.log`, and fall back to "do nothing".
+- **Settings UI is local only**: the server binds to `127.0.0.1`, checks `Host` and `Origin` and requires the `X-Mod-Request` header on every change. Keep it that way; never add a route that reads files or runs commands from a request.
+- **`.env` is read only by the server, Vite and scripts**, with `util.parseEnv` (exact values, no `$VAR` expansion). The hooks never read it. `APP_NAME` is the page title; the plugin's `name` (the slug) is the identity.
+- **Renaming the mod** means changing the plugin `name` (it moves the data folder and the command); migrate the old data folder if the mod was already used.
+- **Languages.** UI strings are English in code, `t('Text')`, with Russian in `ui/src/i18n/ru.ts` (`tests/i18n.test.ts` enforces it). The mod's own messages are in `hooks/lib/messages.ts`. Keep the code, comments, docs and commit messages in English.
+- Dependencies are pinned to exact versions in `package.json`. Add one only when clearly needed. The settings server must stay dependency-free; TypeScript stays on 5.9 until `vue-tsc` supports newer versions.
+
+## Testing
+
+- `tests/*.test.ts` run in Node. Pure modules are tested directly; `tests/handler.test.ts` starts the real handler on a free port; `tests/register.sim.test.ts` runs the real `register.ts` against a fake engine (`$` with an in-memory file system and a scripted process runner) — extend its fake when you use another `$` call.
+- The page has no component tests by default; its translations are tested (`tests/i18n.test.ts`). Look at it in a browser (`npm run dev`) after changing it, in both languages and in light and dark mode.
+- Check with a real Claude Code before you finish a behaviour change: load the mod (see above) and watch it.
+
+## Definition of done
+
+`npm run check` passes with zero warnings; the behaviour was tried in Claude Code; `README.md` and this file are updated when commands, settings or structure changed.
+
+---
+Bootstrapped from the fastDev skeleton `{{ skeleton.id }}` v{{ skeleton.version }}.
